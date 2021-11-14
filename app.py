@@ -32,14 +32,32 @@ def recommend(item):
     item_index = new_df[new_df['id'] == item].index[0]
     distances = similarity[item_index]
     item_list = sorted(list(enumerate(distances)),
-                       reverse=True, key=lambda x: x[1])[1:11]
+                       reverse=True, key=lambda x: x[1])[1:5]
     return item_list
+
+
+def formatted_results(result):
+    arr = []
+    for r in result:
+        my_dict = {}
+        my_dict['product_index'] = r[0]
+        my_dict['similarity_score'] = r[1]
+        arr.append(my_dict)
+    return (arr)
 
 
 @app.route('/', methods=['GET'])
 def get():
-    print(new_df.head())
-    return jsonify({'msg': "Hello me adil"})
+    result = recommend(16)
+    new_result = formatted_results(result)
+    return jsonify({'Result': new_result})
+
+
+@app.route('/contentBasedRecommendation', methods=['GET'])
+def content_based_recommendation():
+    input_product = request.args.get('product')
+    print(input_product)
+    return jsonify({'Result': int(input_product)})
 
 
 @app.route('/addMessage', methods=['POST'])
