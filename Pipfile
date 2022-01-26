@@ -8,6 +8,7 @@ flask = "*"
 numpy = "*"
 pandas = "*"
 sklearn = "*"
+firebase-admin = "*"
 
 [dev-packages]
 

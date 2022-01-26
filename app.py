@@ -3,9 +3,51 @@ import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from firebase_admin import credentials, firestore, initialize_app
+
 
 # Init app
 app = Flask(__name__)
+
+
+# Initialize firestore
+cred = credentials.Certificate("./serviceAccountKey.json")
+default_app = initialize_app(cred)
+db = firestore.client()
+products_ref = db.collection('Products').stream()
+
+productsArr = []
+
+
+def mergeDict(items):
+    newArr = []
+    print(items)
+    for item in items:
+        newArr.append({k: v for x in item for k, v in x.items()})
+
+    return newArr
+
+
+def mergeDict1(items):
+    newArr = []
+    # print(items)
+    newArr.append({k: v for x in items for k, v in x.items()})
+
+    return newArr
+
+
+for doc in products_ref:
+    productsArr.append(doc.to_dict())
+    # print(doc.to_dict())
+
+products_df = pd.DataFrame(productsArr)
+specs_df = products_df[['Specs', 'Productname']]
+# specs_list = products_df['Specs'].to_list()
+# specs_converted = mergeDict(specs_list)
+# specs_df = pd.DataFrame(specs_converted)
+
+specs_df['Specs'] = specs_df['Specs'].apply(lambda x: mergeDict1(x))
+print(specs_df)
 
 laptops = pd.read_csv('laptops.csv', encoding='latin-1')
 laptops = laptops[['id', 'Company', 'Product', 'TypeName',
@@ -77,8 +119,7 @@ def content_based_recommendation():
 def message():
     message = request.json['message']
     print(message)
-
-    return jsonify({'response': 'message recieved'})
+    return jsonify({'response': productsArr})
 
 # Run server
 
