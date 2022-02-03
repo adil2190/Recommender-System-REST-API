@@ -1,3 +1,4 @@
+from math import prod
 from flask import Flask, json, request, jsonify
 import numpy as np
 import pandas as pd
@@ -14,89 +15,93 @@ app = Flask(__name__)
 cred = credentials.Certificate("./serviceAccountKey.json")
 default_app = initialize_app(cred)
 db = firestore.client()
-products_ref = db.collection('Products').stream()
-
-productsArr = []
 
 
-def mergeDict(items):
-    newArr = []
-    print(items)
-    for item in items:
-        newArr.append({k: v for x in item for k, v in x.items()})
-
-    return newArr
-
-
-def mergeDict1(items):
-    newArr = []
-    # print(items)
-    newArr.append({k: v for x in items for k, v in x.items()})
-
-    return newArr
+# def formatted_results(result):
+#     arr = []
+#     for r in result:
+#         my_dict = {}
+#         my_dict['product_index'] = r[0]
+#         my_dict['similarity_score'] = r[1]
+#         arr.append(my_dict)
+#     return (arr)
 
 
-for doc in products_ref:
-    productsArr.append(doc.to_dict())
-    # print(doc.to_dict())
+# laptops = pd.read_csv('laptops.csv', encoding='latin-1')
+# laptops = laptops[['id', 'Company', 'Product', 'TypeName',
+#                    'Cpu', 'Ram', 'Memory', 'Gpu', 'OpSys', 'Price_euros']]
+# laptops['Price_euros'] = laptops['Price_euros'].apply(lambda x: f'price{x}')
+# laptops['Ram'] = laptops['Ram'].apply(lambda x: f'RAM{x}')
+# laptops['Cpu'] = laptops['Cpu'].apply(lambda x: x.replace(' ', ''))
+# laptops['Gpu'] = laptops['Gpu'].apply(lambda x: x.replace(' ', ''))
+# laptops['Memory'] = laptops['Memory'].apply(lambda x: x.replace(' ', ''))
+# laptops['OpSys'] = laptops['OpSys'].apply(lambda x: x.replace(' ', ''))
+# laptops['tags'] = laptops['Company'] + ' ' + laptops['Cpu'] + ' ' + laptops['Memory'] + ' ' + laptops['OpSys'] + \
+#     ' ' + laptops['Ram'] + ' ' + laptops['TypeName'] + \
+#     ' ' + laptops['Price_euros'] + ' ' + laptops['Gpu']
+# new_df = laptops[['id', 'Product', 'tags']]
 
-products_df = pd.DataFrame(productsArr)
-specs_df = products_df[['Specs', 'Productname']]
-# specs_list = products_df['Specs'].to_list()
-# specs_converted = mergeDict(specs_list)
-# specs_df = pd.DataFrame(specs_converted)
-
-specs_df['Specs'] = specs_df['Specs'].apply(lambda x: mergeDict1(x))
-print(specs_df)
-
-laptops = pd.read_csv('laptops.csv', encoding='latin-1')
-laptops = laptops[['id', 'Company', 'Product', 'TypeName',
-                   'Cpu', 'Ram', 'Memory', 'Gpu', 'OpSys', 'Price_euros']]
-laptops['Price_euros'] = laptops['Price_euros'].apply(lambda x: f'price{x}')
-laptops['Ram'] = laptops['Ram'].apply(lambda x: f'RAM{x}')
-laptops['Cpu'] = laptops['Cpu'].apply(lambda x: x.replace(' ', ''))
-laptops['Gpu'] = laptops['Gpu'].apply(lambda x: x.replace(' ', ''))
-laptops['Memory'] = laptops['Memory'].apply(lambda x: x.replace(' ', ''))
-laptops['OpSys'] = laptops['OpSys'].apply(lambda x: x.replace(' ', ''))
-laptops['tags'] = laptops['Company'] + ' ' + laptops['Cpu'] + ' ' + laptops['Memory'] + ' ' + laptops['OpSys'] + \
-    ' ' + laptops['Ram'] + ' ' + laptops['TypeName'] + \
-    ' ' + laptops['Price_euros'] + ' ' + laptops['Gpu']
-new_df = laptops[['id', 'Product', 'tags']]
-
-cv = CountVectorizer(max_features=520)
-vectors = cv.fit_transform(new_df['tags']).toarray()
-
-similarity = cosine_similarity(vectors)
+# print(new_df)
 
 
-def recommend(item):
+# adding the recommended products in the buyers subcollection
+def findProducts(ids, userId):
+    print(userId)
+    arr = []
+    for id in ids:
+        doc_ref = db.collection('Products').document(id)
+        doc = doc_ref.get()
+        if doc.exists:
+            arr.append(doc.to_dict())
+            db.collection('Buyers').document(userId).collection(
+                'ContentRecommended').document(doc.id).set(doc.to_dict())
+    print('success')
+
+
+def recommend(item, userId):
     # print(item)
-    item_index = new_df[new_df['id'] == item].index[0]
+    products_ref = db.collection('Products').stream()
+    productsArr = []
+
+# getting the collection of products from firestore
+    for doc in products_ref:
+        mydict = doc.to_dict()
+        mydict['productId'] = doc.id
+        productsArr.append(mydict)
+        # print(doc.to_dict())
+
+    products_df = pd.DataFrame(productsArr)
+
+    products_df = products_df[['Productname',
+                               'Price', 'productId', 'Specs', 'Category']]
+
+    products_df.rename(columns={'Productname': 'productName', 'Price': 'price',
+                                'productId': 'id', 'Specs': 'specs', 'Category': 'category'}, inplace=True)
+
+    products_df['price'] = products_df['price'].apply(lambda x: f'price{x}')
+    products_df['tags'] = products_df['specs'] + ' ' + \
+        products_df['price'] + ' ' + products_df['category'] + \
+        ' ' + products_df['productName']
+    # print(products_df['tags'])
+    final_products_df = products_df[['id', 'productName', 'tags']]
+    cv = CountVectorizer(max_features=520)
+    vectors = cv.fit_transform(final_products_df['tags']).toarray()
+
+    similarity = cosine_similarity(vectors)
+
+    item_index = final_products_df[final_products_df['id'] == item].index[0]
     distances = similarity[item_index]
     item_list = sorted(list(enumerate(distances)),
                        reverse=True, key=lambda x: x[1])[1:6]
-    return item_list
 
-
-def formatted_results(result):
     arr = []
-    for r in result:
-        my_dict = {}
-        my_dict['product_index'] = r[0]
-        my_dict['similarity_score'] = r[1]
-        arr.append(my_dict)
+    for r in item_list:
+        arr.append(final_products_df.iloc[r[0]].id)
+    findProducts(arr, userId)
     return (arr)
 
 
-def detailed_results(result):
-    arr = []
-    for r in result:
-        my_dict = {}
-        my_dict['similarity_score'] = r[1]
-        my_dict['product_name'] = new_df.iloc[r[0]].Product
-        my_dict['specifications'] = new_df.iloc[r[0]].tags
-        arr.append(my_dict)
-    return (arr)
+# def detailed_results(result):
 
 
 # test
@@ -109,20 +114,14 @@ def get():
 
 @app.route('/contentBasedRecommendation', methods=['GET'])
 def content_based_recommendation():
-    input_product = int(request.args.get('product'))
-    result = recommend(input_product)
-    new_result = detailed_results(result)
-    return jsonify({'Result': new_result})
+    input_product = request.args.get('product')
+    user_id = request.args.get('userId')
+    result = recommend(input_product, user_id)
+    # new_result = detailed_results(result)
+    return jsonify({'Result': result})
 
-
-@app.route('/addMessage', methods=['POST'])
-def message():
-    message = request.json['message']
-    print(message)
-    return jsonify({'response': productsArr})
 
 # Run server
-
 
 if __name__ == '__main__':
     app.run(debug=True)
