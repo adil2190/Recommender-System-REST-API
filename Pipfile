@@ -9,6 +9,7 @@ numpy = "*"
 pandas = "*"
 sklearn = "*"
 firebase-admin = "*"
+scipy = "*"
 
 [dev-packages]
 

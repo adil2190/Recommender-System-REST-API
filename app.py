@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from scipy.sparse import csr_matrix
+from sklearn.neighbors import NearestNeighbors
 from firebase_admin import credentials, firestore, initialize_app
 
 
@@ -16,7 +18,29 @@ cred = credentials.Certificate("./serviceAccountKey.json")
 default_app = initialize_app(cred)
 db = firestore.client()
 
+ratings_ref = db.collection('Ratings').stream()
+ratingsArr = []
 
+for doc in ratings_ref:
+    ratingsArr.append(doc.to_dict())
+
+ratings_df = pd.DataFrame(ratingsArr)
+
+ratings_pivot = ratings_df.pivot_table(
+    columns='userId', index='productId', values='rating')
+ratings_pivot.fillna(0, inplace=True)
+
+ratings_sparse = csr_matrix(ratings_pivot)
+model = NearestNeighbors(algorithm='brute')
+model.fit(ratings_sparse)
+
+input_index = np.where(ratings_pivot.index == 'brUHbL43sSYt1URMYuZ9')[0][0]
+# print(input_index)
+distances, suggestions = model.kneighbors(
+    ratings_pivot.iloc[input_index, :].values.reshape(1, -1), n_neighbors=2)
+results = suggestions[0]
+for item in results:
+    print(ratings_pivot.index[item])
 # def formatted_results(result):
 #     arr = []
 #     for r in result:
@@ -107,9 +131,7 @@ def recommend(item, userId):
 # test
 @app.route('/', methods=['GET'])
 def get():
-    result = recommend(16)
-    new_result = formatted_results(result)
-    return jsonify({'Result': new_result})
+    return jsonify({'Result': "Hello World"})
 
 
 @app.route('/contentBasedRecommendation', methods=['GET'])
