@@ -152,7 +152,7 @@ def content_based_recommendation():
 def collaborative_filtering():
     input_product = request.args.get('product')
     user_id = request.args.get('userId')
-    result = collaborative_recommend(input_product, user_id)
+    result = collaborative_recommend(input_product, user_id)[1:6]
     return jsonify({'Result': result})
 
 # Run server
