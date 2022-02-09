@@ -103,7 +103,7 @@ def recommend(item, userId):
     return (arr)
 
 
-def collaborative_recommend(item, userId):
+def collaborative_recommend(item):
     ratings_ref = db.collection('Ratings').stream()
     ratingsArr = []
 
@@ -152,7 +152,7 @@ def content_based_recommendation():
 def collaborative_filtering():
     input_product = request.args.get('product')
     user_id = request.args.get('userId')
-    result = collaborative_recommend(input_product, user_id)[1:6]
+    result = collaborative_recommend(input_product)[1:6]
     return jsonify({'Result': result})
 
 # Run server
