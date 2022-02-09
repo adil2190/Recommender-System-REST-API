@@ -151,7 +151,6 @@ def content_based_recommendation():
 @app.route('/collaborativeRecommendation', methods=['GET'])
 def collaborative_filtering():
     input_product = request.args.get('product')
-    user_id = request.args.get('userId')
     result = collaborative_recommend(input_product)[1:6]
     return jsonify({'Result': result})
 
