@@ -18,29 +18,6 @@ cred = credentials.Certificate("./serviceAccountKey.json")
 default_app = initialize_app(cred)
 db = firestore.client()
 
-ratings_ref = db.collection('Ratings').stream()
-ratingsArr = []
-
-for doc in ratings_ref:
-    ratingsArr.append(doc.to_dict())
-
-ratings_df = pd.DataFrame(ratingsArr)
-
-ratings_pivot = ratings_df.pivot_table(
-    columns='userId', index='productId', values='rating')
-ratings_pivot.fillna(0, inplace=True)
-
-ratings_sparse = csr_matrix(ratings_pivot)
-model = NearestNeighbors(algorithm='brute')
-model.fit(ratings_sparse)
-
-input_index = np.where(ratings_pivot.index == 'brUHbL43sSYt1URMYuZ9')[0][0]
-# print(input_index)
-distances, suggestions = model.kneighbors(
-    ratings_pivot.iloc[input_index, :].values.reshape(1, -1), n_neighbors=2)
-results = suggestions[0]
-for item in results:
-    print(ratings_pivot.index[item])
 # def formatted_results(result):
 #     arr = []
 #     for r in result:
@@ -118,12 +95,40 @@ def recommend(item, userId):
     item_list = sorted(list(enumerate(distances)),
                        reverse=True, key=lambda x: x[1])[1:6]
 
+    print(item_list)
     arr = []
     for r in item_list:
         arr.append(final_products_df.iloc[r[0]].id)
     findProducts(arr, userId)
     return (arr)
 
+
+def collaborative_recommend(item, userId):
+    ratings_ref = db.collection('Ratings').stream()
+    ratingsArr = []
+
+    for doc in ratings_ref:
+        ratingsArr.append(doc.to_dict())
+
+    ratings_df = pd.DataFrame(ratingsArr)
+
+    ratings_pivot = ratings_df.pivot_table(
+        columns='userId', index='productId', values='rating')
+    ratings_pivot.fillna(0, inplace=True)
+
+    ratings_sparse = csr_matrix(ratings_pivot)
+    model = NearestNeighbors(algorithm='brute')
+    model.fit(ratings_sparse)
+
+    input_index = np.where(ratings_pivot.index == item)[0][0]
+    # print(input_index)
+    distances, suggestions = model.kneighbors(
+        ratings_pivot.iloc[input_index, :].values.reshape(1, -1), n_neighbors=2)
+    arr = []
+    for item in suggestions[0]:
+        arr.append(ratings_pivot.index[item])
+
+    return arr
 
 # def detailed_results(result):
 
@@ -143,7 +148,15 @@ def content_based_recommendation():
     return jsonify({'Result': result})
 
 
+@app.route('/collaborativeRecommendation', methods=['GET'])
+def collaborative_filtering():
+    input_product = request.args.get('product')
+    user_id = request.args.get('userId')
+    result = collaborative_recommend(input_product, user_id)
+    return jsonify({'Result': result})
+
 # Run server
+
 
 if __name__ == '__main__':
     app.run(debug=True)
