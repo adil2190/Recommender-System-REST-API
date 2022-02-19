@@ -49,13 +49,18 @@ db = firestore.client()
 def findProducts(ids, userId):
     print(userId)
     arr = []
+    count = 1
     for id in ids:
         doc_ref = db.collection('Products').document(id)
         doc = doc_ref.get()
+        myDict = doc.to_dict()
+        myDict['index'] = count
+        print(myDict)
         if doc.exists:
-            arr.append(doc.to_dict())
+            arr.append(myDict)
             db.collection('Buyers').document(userId).collection(
-                'ContentRecommended').document(doc.id).set(doc.to_dict())
+                'ContentRecommended').document(doc.id).set(myDict)
+        count = count + 1
     print('success')
 
 
