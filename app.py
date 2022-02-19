@@ -119,16 +119,20 @@ def collaborative_recommend(item):
     ratings_sparse = csr_matrix(ratings_pivot)
     model = NearestNeighbors(algorithm='brute')
     model.fit(ratings_sparse)
+    # print('item --------> ', np.where(ratings_pivot.index == item)[0][0])
+    try:
+        input_index = np.where(ratings_pivot.index == item)[0][0]
+        print(input_index)
+        distances, suggestions = model.kneighbors(
+            ratings_pivot.iloc[input_index, :].values.reshape(1, -1), n_neighbors=2)
+        arr = []
+        for item in suggestions[0]:
+            arr.append(ratings_pivot.index[item])
 
-    input_index = np.where(ratings_pivot.index == item)[0][0]
-    # print(input_index)
-    distances, suggestions = model.kneighbors(
-        ratings_pivot.iloc[input_index, :].values.reshape(1, -1), n_neighbors=2)
-    arr = []
-    for item in suggestions[0]:
-        arr.append(ratings_pivot.index[item])
+        return arr
+    except:
+        return []
 
-    return arr
 
 # def detailed_results(result):
 
