@@ -46,6 +46,19 @@ db = firestore.client()
 
 
 # adding the recommended products in the buyers subcollection
+def delete_collection(coll_ref, batch_size):
+    docs = coll_ref.limit(batch_size).stream()
+    deleted = 0
+
+    for doc in docs:
+        print(f'Deleting doc {doc.id} => {doc.to_dict()}')
+        doc.reference.delete()
+        deleted = deleted + 1
+
+    if deleted >= batch_size:
+        return delete_collection(coll_ref, batch_size)
+
+
 def findProducts(ids, userId):
     print(userId)
     arr = []
@@ -55,11 +68,12 @@ def findProducts(ids, userId):
         doc = doc_ref.get()
         myDict = doc.to_dict()
         myDict['index'] = count
+        myDict['id'] = id
         print(myDict)
         if doc.exists:
             arr.append(myDict)
             db.collection('Buyers').document(userId).collection(
-                'ContentRecommended').document(doc.id).set(myDict)
+                'ContentRecommended').document(f'product{count}').set(myDict)
         count = count + 1
     print('success')
 
