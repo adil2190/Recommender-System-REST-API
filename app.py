@@ -143,7 +143,8 @@ def collaborative_recommend(item):
         input_index = np.where(ratings_pivot.index == item)[0][0]
         print(input_index)
         distances, suggestions = model.kneighbors(
-            ratings_pivot.iloc[input_index, :].values.reshape(1, -1), n_neighbors=2)
+            ratings_pivot.iloc[input_index, :].values.reshape(1, -1), n_neighbors=6)
+        print(suggestions[0])
         arr = []
         for item in suggestions[0]:
             arr.append(ratings_pivot.index[item])
